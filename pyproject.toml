@@ -4,7 +4,16 @@ version = "0.1.0"
 
 dependencies = [
     "typer",
-    "torch"
+    "torch",
+    "open-clip-torch",
+    "faiss-cpu",
+    "transformers>=4.57.0",
+    "qwen-vl-utils[decord]>=0.0.14",
+    "accelerate",
+    "tqdm",
+    "pillow",
+    "numpy",
+    "bitsandbytes>=0.46.1",
 ]
 
 [build-system]
