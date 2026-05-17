@@ -9,6 +9,7 @@ from varch.encoder import MODEL as CLIP_MODEL
 from varch.encoder import PRETRAINED
 from transformers import (AutoProcessor, Qwen2_5_VLForConditionalGeneration)
 from varch.vlm import MODEL as QWEN_MODEL
+from huggingface_hub.constants import HF_HUB_CACHE
 
 
 # silence warnings
@@ -25,19 +26,17 @@ app = typer.Typer(help="varch - local multimodal image RAG system")
 
 # Commands
 
-# downloads and installs all necessary things
 @app.command()
 def init():
-
     typer.echo("initializing varch...")
-
-    typer.echo(f"detected device: {"cpu" if device != 'cuda' else torch.cuda.get_device_name(0)}")
-
     try:
         typer.echo("downloading open-clip...")
-        _, _, _ = open_clip.create_model_and_transforms(CLIP_MODEL,PRETRAINED)
+        _, _, _ = open_clip.create_model_and_transforms(
+            CLIP_MODEL,
+            pretrained=PRETRAINED
+        )
         _ = open_clip.get_tokenizer(CLIP_MODEL)
-        typer.echo("open-clip cached at ~/.cache/huggingface/hub")
+        typer.echo(f"open-clip saved to {HF_HUB_CACHE}")
         typer.echo("open-clip ready")
 
         typer.echo("downloading qwen-vl...")
@@ -45,9 +44,10 @@ def init():
             QWEN_MODEL,
             torch_dtype=torch.float16,
             device_map="auto",
-            attn_implementation="sdpa")
+            attn_implementation="sdpa"
+        )
         AutoProcessor.from_pretrained(QWEN_MODEL)
-        typer.echo("qwen-vl cached at ~/.cache/huggingface/hub")
+        typer.echo(f"qwen-vl saved to {HF_HUB_CACHE}")
         typer.echo("qwen-vl ready")
 
         typer.echo("varch initialization completed successfully")
@@ -55,6 +55,7 @@ def init():
     except Exception as e:
         typer.echo(f"[ERROR] {e}")
         raise typer.Exit(code=1)
+
 
 # observe all images in path and embedd into the DB
 @app.command()

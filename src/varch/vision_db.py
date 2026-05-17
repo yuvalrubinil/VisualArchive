@@ -10,7 +10,8 @@ VALID_FORMATS = ('.jpg', '.jpeg', '.png')
 
 class VisionDB():
     def __init__(self, path, device, batch_size=32, hnsw_links=0, load=False):
-        self.path = path
+        self.path = os.path.join(path, "db")
+        os.makedirs(self.path, exist_ok=True)
         self.device = device
         self.batch_size = batch_size
         self.encoder = Encoder().to(self.device)

@@ -4,3 +4,4 @@
 dataset/
 src/varch/__pycache__
 src/dataset.py
+db/
