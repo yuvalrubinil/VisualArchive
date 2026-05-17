@@ -27,15 +27,12 @@ class VLM:
         )
 
     @torch.no_grad()
-    def generate_answer(self, query, images_paths, scores):
-        # 1. Build a single content list containing ALL retrieved images and the final RAG prompt
+    def generate_answer(self, query, images_paths):
         content = []
-        
-        # Append all images into the context payload
         for path in images_paths:
             content.append({"type": "image", "image": path})
             
-        # Append the strict RAG instruction text block at the end of the content array
+        # RAG instruction
         rag_prompt = (
             f"You are a precise Retrieval-Augmented Generation (RAG) assistant.\n"
             f"Answer the user's query using ONLY the factual data, text, charts, or visual information "
@@ -46,14 +43,14 @@ class VLM:
         )
         content.append({"type": "text", "text": rag_prompt})
         
-        # 2. Package into standard Qwen message format
+        # package into standard qwen message format
         messages = [{"role": "user", "content": content}]
         text = self.processor.apply_chat_template(
             messages, tokenize=False, add_generation_prompt=True
         )
         image_inputs, video_inputs = process_vision_info(messages)
 
-        # 3. Process inputs for the entire batch of images at once
+        # process inputs
         inputs = self.processor(
             text=[text],
             images=image_inputs,
@@ -62,21 +59,19 @@ class VLM:
             return_tensors="pt",
         ).to(self.model.device)
 
-        # 4. Generate the single comprehensive answer (increased max_new_tokens for a complete response)
+        # generate answer 
         generated_ids = self.model.generate(**inputs, max_new_tokens=256)
-
         generated_ids_trimmed = [
             out_ids[len(in_ids) :]
             for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
         ]
-
         rag_answer = self.processor.batch_decode(
             generated_ids_trimmed,
             skip_special_tokens=True,
             clean_up_tokenization_spaces=False,
         )[0].strip()
         
-        # Clean up CUDA memory
+        # clean up cuda memory
         del inputs, generated_ids, generated_ids_trimmed
         torch.cuda.empty_cache()
         

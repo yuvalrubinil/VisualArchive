@@ -10,6 +10,7 @@ from varch.encoder import PRETRAINED
 from transformers import (AutoProcessor, Qwen2_5_VLForConditionalGeneration)
 from varch.vlm import MODEL as QWEN_MODEL
 from huggingface_hub.constants import HF_HUB_CACHE
+from huggingface_hub import scan_cache_dir
 
 
 # silence warnings
@@ -35,6 +36,36 @@ def build_output(images_paths, scores, rag_answer=None):
 
 
 # Commands
+
+@app.command()
+def status():
+    # device
+    device_color = typer.colors.GREEN if device == 'cuda' else typer.colors.BLUE
+    styled_device = typer.style(device, fg=device_color)
+
+    # cache
+    clip_repo = "laion/CLIP-ViT-B-32-laion2B-s34B-b79K"
+    qwen_repo = "Qwen/Qwen2.5-VL-3B-Instruct"
+    try:
+        cached_repos = {repo.repo_id for repo in scan_cache_dir().repos}
+    except Exception:
+        cached_repos = set()
+    clip_cached = clip_repo in cached_repos
+    qwen_cached = qwen_repo in cached_repos
+
+    styled_clip = typer.style(clip_repo, fg=typer.colors.GREEN if clip_cached else typer.colors.RED)
+    styled_qwen = typer.style(qwen_repo, fg=typer.colors.GREEN if qwen_cached else typer.colors.RED)
+
+    # db
+    db_dir = Path(os.getcwd()) / "db"
+    db_files = {"embeddings.index", "paths.npy"}
+    db_status = db_dir.exists() and all((db_dir / file_name).exists() for file_name in db_files)
+
+    styled_db = typer.style(f"ready" if db_status else f"missing", fg=typer.colors.GREEN if db_status else typer.colors.RED)
+
+    typer.echo(f"device: {styled_device}")
+    typer.echo(f"hf cache: {styled_clip}   {styled_qwen}")
+    typer.echo(f"database: {styled_db}")
 
 @app.command()
 def init():

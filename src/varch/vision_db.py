@@ -55,7 +55,7 @@ class VisionDB():
                 self.paths.extend(valid_batch_paths)
         
         self.save()
-        print(f"done! indexed {self.index.ntotal}/{len(images)}")
+        print(f"indexed {self.index.ntotal}/{len(images)} images")
 
     @torch.no_grad()
     def search(self, text, k=5):
@@ -76,13 +76,13 @@ class VisionDB():
         print("saving db...")
         faiss.write_index(self.index, os.path.join(self.path, "embeddings.index"))
         np.save(os.path.join(self.path, "paths.npy"), self.paths)
-        print(f"db saved to {self.path}")
+        print(f"db saved to {self.path} successfuly")
 
     def load(self):
         print("loading db...")
         self.index = faiss.read_index(os.path.join(self.path, "embeddings.index"))
         self.paths = np.load(os.path.join(self.path, "paths.npy")).tolist()
-        print(f"db loaded from {self.path}")
+        print(f"db loaded from {self.path} successfuly")
 
 
 

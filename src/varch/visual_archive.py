@@ -16,7 +16,7 @@ class VisualArchive:
         rag_answer = None
         relevant_paths, scores = self.db.search(query, k)
         if self.vlm:
-            rag_answer = self.vlm.generate_answer(query, relevant_paths, scores)
+            rag_answer = self.vlm.generate_answer(query, relevant_paths)
         return relevant_paths, scores, rag_answer
     
 
