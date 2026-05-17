@@ -75,22 +75,11 @@ class VLM:
             skip_special_tokens=True,
             clean_up_tokenization_spaces=False,
         )[0].strip()
-
-        # 5. Format the final interactive output string for your UI/Gradio/Streamlit
-        output_lines = [
-            "\n--- varch Answer ---",
-            rag_answer,
-            "\n--- Retrieved Images (Ctrl+Click to open) ---"
-        ]
-        for i, (path, score) in enumerate(zip(images_paths, scores)):
-            output_lines.append(f"Image {i+1} [Score: {score:.4f}]: {path}")
-            
-        output_lines.append("-----------------------------------------------------------------\n")
         
         # Clean up CUDA memory
         del inputs, generated_ids, generated_ids_trimmed
         torch.cuda.empty_cache()
         
-        return "\n".join(output_lines)
+        return rag_answer
     
     

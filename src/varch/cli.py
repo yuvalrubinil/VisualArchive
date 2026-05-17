@@ -24,6 +24,16 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 app = typer.Typer(help="varch - local multimodal image RAG system")
 
 
+# how the retrived info is printed back to the user
+def build_output(images_paths, scores, rag_answer=None):
+    output_lines = ["\n--- Retrieved Images (Ctrl+Click to open) ---"]
+    if rag_answer: output_lines = ["\n--- varch Answer ---", rag_answer] + output_lines
+    for i, (path, score) in enumerate(zip(images_paths, scores)):
+        output_lines.append(f"Image {i+1} [Score: {score:.4f}]: {path}")
+    output_lines.append("-----------------------------------------------------------------\n")
+    return "\n".join(output_lines)
+
+
 # Commands
 
 @app.command()
@@ -65,14 +75,17 @@ def observe(path: str = typer.Argument(...,help="path to image folder")):
 
 # load & search the archive
 @app.command()
-def search(k: int = typer.Option(5,help="top-k retrieval count")):
-    visual_archive = VisualArchive(path=Path.cwd(), device=device, load_db=True)
+def search(k: int = typer.Option(5, "-k", help="number of retrieved images"), fast_retrieval: bool = typer.Option(False, "--fr", help="use faster retrieval mode")):
+    visual_archive = VisualArchive(path=Path.cwd(), device=device, load_db=True, load_vlm=not fast_retrieval)
     while True:
         query: str = input('query: ')
         if query == '~terminate': 
             break 
-        answer = visual_archive.search(query, k)
+        relevant_paths, scores, rag_answer = visual_archive.search(query, k)
+        answer = build_output(relevant_paths, scores, rag_answer)
         typer.echo(answer)
+
+
 
 
 def main():
