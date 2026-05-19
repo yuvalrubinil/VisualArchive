@@ -22,13 +22,15 @@ warnings.filterwarnings(
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-app = typer.Typer(help="varch - local multimodal image RAG system")
+app = typer.Typer(help="varch - VisualArchive, local image RAG system")
 
 
 # how the retrived info is printed back to the user
 def build_output(images_paths, scores, rag_answer=None):
-    output_lines = ["\n--- Retrieved Images (Ctrl+Click to open) ---"]
-    if rag_answer: output_lines = ["\n--- varch Answer ---", rag_answer] + output_lines
+    output_lines = ["--- Retrieved Images (Ctrl+Click to open) ---"]
+    if rag_answer: 
+        styled_rag_answer = typer.style(rag_answer, fg=typer.colors.BRIGHT_CYAN)
+        output_lines = ["\n", styled_rag_answer] + output_lines
     for i, (path, score) in enumerate(zip(images_paths, scores)):
         output_lines.append(f"Image {i+1} [Score: {score:.4f}]: {path}")
     output_lines.append("-----------------------------------------------------------------\n")
@@ -45,7 +47,7 @@ def status():
 
     # cache
     clip_repo = "laion/CLIP-ViT-B-32-laion2B-s34B-b79K"
-    qwen_repo = "Qwen/Qwen2.5-VL-3B-Instruct"
+    qwen_repo = QWEN_MODEL
     try:
         cached_repos = {repo.repo_id for repo in scan_cache_dir().repos}
     except Exception:

@@ -34,10 +34,14 @@ class VLM:
             
         # RAG instruction
         rag_prompt = (
-            f"You are a precise Retrieval-Augmented Generation (RAG) assistant.\n"
-            f"Answer the user's query using ONLY the factual data, text, charts, or visual information "
-            f"visible across the provided images. Do not give generic descriptions of the images; "
-            f"directly synthesize an answer to the query.\n\n"
+            f"You are a precise local image archive assistant.\n"
+            f"Analyze the provided images to see if they match or answer the user's query.\n\n"
+            
+            f"RULES:\n"
+            f"1. VISUAL IS DATA: Identify real-world objects, people, attributes (color, clothing, etc), scenes, and actions visible in the images as concrete facts.\n"
+            f"2. DIRECT CONFIRMATION: Confirm what is present that matches the query. Do not say 'The image shows...'.\n"
+            f"3. HONEST NEGATIVE: If none of the images match the query description at all, state clearly that the requested item/subject is not present.\n\n"
+            
             f"User Query: '{query}'\n\n"
             f"Answer:"
         )
@@ -73,7 +77,8 @@ class VLM:
         
         # clean up cuda memory
         del inputs, generated_ids, generated_ids_trimmed
-        torch.cuda.empty_cache()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
         
         return rag_answer
     
