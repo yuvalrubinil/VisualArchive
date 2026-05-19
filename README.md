@@ -1,4 +1,6 @@
-# Visual Archive (`varch`)
+# Visual Archive
+
+![Project Logo](figures/poster1.png)
 
 `varch` is a lightweight, fully local, multimodal RAG system designed to let you query your local image galleries using natural language. 
 

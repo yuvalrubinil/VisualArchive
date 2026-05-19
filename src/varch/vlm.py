@@ -9,7 +9,7 @@ class VLM:
     def __init__(self, device):
         print("loading vlm...")
         self.device = device
-        self.processor = AutoProcessor.from_pretrained(MODEL)
+        self.processor = AutoProcessor.from_pretrained(MODEL, local_files_only=True)
 
         quantization_config = BitsAndBytesConfig(
             load_in_4bit=True,
@@ -24,6 +24,7 @@ class VLM:
             device_map="auto",  
             quantization_config=quantization_config,
             attn_implementation="sdpa",
+            local_files_only=True
         )
 
     @torch.no_grad()
