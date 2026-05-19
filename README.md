@@ -10,6 +10,7 @@ By combining dense semantic vector search via **CLIP** with a fine grained Visio
 
 `varch` implements a streamlined, lightweight pipeline that leverages the natural joint latent space of CLIP paired with the visual reasoning of Qwen2.5-VL:
 
+```mermaid 
 graph LR
     %% Define Styles and Colors
     classDef process fill:#23272e,stroke:#3e4451,stroke-width:2px,color:#abb2bf;
@@ -63,6 +64,7 @@ graph LR
     class F retrievalK;
     class H process;
     class J retrieval;
+```
 
 **Database Indexing:** Local image collections are processed entirely offline through a **CLIP Vision Encoder** to generate dense visual embedding vectors, which are then indexed inside a high-performance **FAISS** vector database.
 
@@ -87,8 +89,67 @@ graph LR
 ## Installation & Setup
 
 ### 1. Prerequisites
-Ensure you have Python 3.10+ and a CUDA-compatible environment configured.
+- Ensure you have Python 3.12+. 
+- CUDA-compatible environment configured (higly recommanded).
 
-### 2. Clone and Install Dependencies
+### 2. Installation
 ```bash
-git clone ...
+git clone https://github.com/yuvalrubinil/VisualArchive
+cd VisualArchive
+python -m venv .venv
+source .venv/bin/activate
+pip install -e .
+```
+
+### 3. Usage & Command Reference
+
+The toolkit exposes a global unified entry point `varch` through your terminal. Below is the detailed reference of all supported commands, arguments, and options derived from the core application source.
+
+### Commands Summary
+
+| Command | Action | Arguments |
+| :--- | :--- | :--- |
+| [`status`](#1-varch-status) | Checks hardware backend, database health, and model cache status. | None |
+| [`init`](#2-varch-init) | Pre-downloads and verifies the required weights for local execution. | None |
+| [`observe`](#3-varch-observe) | Processes a folder of images and commits embeddings into the vector DB. | `PATH` |
+| [`search`](#4-varch-search) | Spawns an interactive shell prompt session for semantic retrieval. |`-k`, `--fr` |
+
+---
+
+### Command Details & Parameters
+
+#### 1. `varch status`
+Inspects your environment variables, checking whether execution defaults to hardware accelerated `cuda` or `cpu` backends. It scans local Hugging Face directories to verify cached model binaries (`open-clip` and `qwen-vl`) and ensures index mapping components are intact.
+
+  ```bash
+  varch status
+  ```
+
+
+#### 2. `varch init`
+Triggers sequential caching operations for required baseline layers. It pulls both tokenizers and model backbones down to the internal storage directories (HF_HUB_CACHE) so the toolkit can run in entirely isolated environments.
+
+  ```bash
+  varch init
+  ```
+
+#### 3. `varch observe`
+Scans a target directory, processes your image archive using latent feature extraction layers, and updates local database instances.
+
+* **Arguments:**
+  * `PATH` *(Text, Required)*: Position argument denoting the relative or absolute path pointing to the target image folder.
+
+```bash
+varch observe /path/to/image/folder
+```
+
+#### 4. `varch search`
+Launches an ongoing interactive session inside your terminal to find visuals via natural language. Type queries continuously; input `~terminate` to safely break out and exit the execution thread.
+
+* **Arguments:**
+  * `-k` (Integer, Default: 5): Sets the limit threshold for the total number of nearest-neighbor matches retrieved.
+  * `--fr` (Flag, Default: False): Enables Fast Retrieval mode. Activating this flag bypasses heavy visual language reconstruction steps (skipping VLM weights decoding logic entirely) to provide pure vector lookup speeds across embeddings.
+
+```bash
+varch search -k 3 --fr
+```
