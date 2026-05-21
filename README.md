@@ -28,8 +28,14 @@ graph LR
     %% Retrieval output similar to DB
     classDef retrievalK fill:#2e3440,stroke:#88c0d0,stroke-width:2px,color:#e5e9f0;
     classDef retrieval fill:#2e3440,stroke:#a3be8c,stroke-width:2px,color:#e5e9f0;
+
     %% Invisible spacer style
     classDef invisible fill:transparent,stroke:transparent,color:transparent;
+
+    %% Make subgraphs transparent
+    style Indexing fill:transparent,stroke:#4c566a,color:#d8dee9
+    style Retrieval fill:transparent,stroke:#4c566a,color:#d8dee9
+    style Generation fill:transparent,stroke:#4c566a,color:#d8dee9
 
     %% 1. Database Indexing Path
     subgraph Indexing ["Database Indexing"]
@@ -45,8 +51,8 @@ graph LR
     subgraph Retrieval ["Dense Semantic Retrieval⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀"]
         direction LR
         D[Raw Text User Query] --> E(CLIP Text Encoder)
-        E -.-> C
-        C -.-> F[Top-K Images]
+        E --> C
+        C --> F[Top-K Images]
     end
 
     %% 3. Multimodal Generation Path
