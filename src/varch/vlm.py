@@ -1,3 +1,4 @@
+import re
 import torch
 from qwen_vl_utils import process_vision_info
 from transformers import (AutoProcessor, BitsAndBytesConfig, Qwen2_5_VLForConditionalGeneration)
@@ -26,6 +27,106 @@ class VLM:
             attn_implementation="sdpa",
             local_files_only=True
         )
+        print("vlm loaded successfuly")
+
+    
+    @torch.no_grad()
+    def image_to_text(self, image_path):
+        content = [
+            {"type": "image", "image": image_path},
+            {"type": "text", "text": (
+                "Task: Describe the primary subject and their main action in a single, ultra-concise sentence.\n\n"
+                "CRITICAL CONSTRAINTS:\n"
+                "1. NO BACKGROUNDS: Completely omit walls, floors, windows, furniture, and room layouts.\n"
+                "2. NO SPECULATION: Do not use weak fillers like 'appears to be', 'looks like', or 'seems to'. State only observable actions directly.\n"
+                "3. FORMAT: Output only the single raw sentence ending with a period. Keep it under 20 words."
+            )}
+        ]
+        
+        messages = [{"role": "user", "content": content}]
+        text = self.processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        image_inputs, video_inputs = process_vision_info(messages)
+
+        inputs = self.processor(
+            text=[text], images=image_inputs, videos=video_inputs, padding=True, return_tensors="pt"
+        ).to(self.model.device)
+
+        generated_ids = self.model.generate(**inputs, max_new_tokens=32)
+        generated_ids_trimmed = [out_ids[len(in_ids):] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)]
+        base_description = self.processor.batch_decode(
+            generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
+        )[0].strip()
+        
+        del inputs, generated_ids, generated_ids_trimmed
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        return base_description
+    
+
+    @torch.no_grad()
+    def rank_and_filter(self, query, images_paths, threshold=4):
+        """Stage 1: Evaluates all images sequentially and returns them sorted by
+
+        relevancy score. Removes images below the threshold.
+        """
+        scored_images = []
+
+        for path in images_paths:
+            content = [{"type": "image", "image": path}]
+
+            rank_prompt = (
+                f"Analyze this image's relevancy to the user query.\n"
+                f"Query: '{query}'\n\n"
+                f"Assign a relevancy score from 0 to 5:\n"
+                f"5: Perfect match.\n"
+                f"3-4: Partial match.\n"
+                f"1-2: Low match.\n"
+                f"0: Completely irrelevant.\n\n"
+                f"Output format: You MUST start with '[Score: X]'."
+            )
+            content.append({"type": "text", "text": rank_prompt})
+
+            messages = [{"role": "user", "content": content}]
+            text = self.processor.apply_chat_template(
+                messages, tokenize=False, add_generation_prompt=True
+            )
+            image_inputs, video_inputs = process_vision_info(messages)
+
+            inputs = self.processor(
+                text=[text],
+                images=image_inputs,
+                videos=video_inputs,
+                padding=True,
+                return_tensors="pt",
+            ).to(self.model.device)
+
+            # Restrict tokens tightly since we only care about the prefix score
+            generated_ids = self.model.generate(**inputs, max_new_tokens=10)
+            generated_ids_trimmed = [
+                out_ids[len(in_ids) :]
+                for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
+            ]
+            output_text = self.processor.batch_decode(
+                generated_ids_trimmed,
+                skip_special_tokens=True,
+                clean_up_tokenization_spaces=False,
+            )[0].strip()
+
+            match = re.search(r"\[Score:\s*([0-5])\]", output_text)
+            score = int(match.group(1)) if match else 0
+
+            if score >= threshold:
+                scored_images.append((path, score))
+
+            del inputs, generated_ids, generated_ids_trimmed
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+
+        # Sort descending by score
+        scored_images.sort(key=lambda x: x[1], reverse=True)
+
+        return [path for path, score in scored_images]
+    
 
     @torch.no_grad()
     def generate_answer(self, query, images_paths):
@@ -82,5 +183,3 @@ class VLM:
             torch.cuda.empty_cache()
         
         return rag_answer
-    
-    
