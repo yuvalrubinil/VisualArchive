@@ -132,24 +132,30 @@ class VLM:
     @torch.no_grad()
     def generate_answer(self, query, images_paths, dual_modality=False):
         content = []
+        num_images = len(images_paths)
+        
         for path in images_paths:
             content.append({"type": "image", "image": path})
             
         # RAG instruction
         rag_prompt = (
             f"You are a precise local image archive assistant.\n"
-            f"Analyze the provided images to see if they match or answer the user's query.\n\n"
+            f"Analyze the provided set of {num_images} images to see if they match or answer the user's query.\n\n"
             
             f"RULES:\n"
-            f"1. VISUAL IS DATA: Identify real-world objects, people, attributes (color, clothing, etc), scenes, and actions visible in the images as concrete facts.\n"
-            f"2. DIRECT CONFIRMATION: Confirm what is present that matches the query. Do not say 'The image shows...'.\n"
-            f"3. HONEST NEGATIVE: If none of the images match the query description at all, state clearly that the requested item/subject is not present.\n\n"
+            f"1. VISUAL IS DATA: Identify real-world objects, people, attributes (color, clothing, etc), scenes, and actions visible across all provided images as concrete facts.\n"
+            f"2. CROSS-IMAGE SYNTHESIS: Look at all images as a collective archive. If multiple images contain relevant information, synthesize them into a single, cohesive answer. When referencing specific details, differentiate them naturally (e.g., 'The first photo shows... while another photo features...').\n"
+            f"3. DIRECT CONFIRMATION: Start your response directly and naturally. If matches are found, use an affirmative phrase like: 'Yes, here are the images matching to a [MAIN OBJECT/ACTION]'. Never use robotic robotic setup phrasing like 'The image matches the description of...'.\n"
+            f"4. HONEST NEGATIVE: If none of the images match the query description at all after reviewing the entire set, state clearly that the requested item/subject is not present.\n"
+            f"5. NO ECHOING: Do not quote or repeat the exact phrasing of the user's query\n"
+            f"6. GENERALIZATION: collapse the description down to its absolute core subject (the primary object and its color). Do not list specific backgrounds, actions, or secondary details in your negative response (e.g., instead of saying 'None of the images match the description of a green frog sitting on a gray leaf with its eyes wide open', state simply: 'None of the images match to a green frog').\n"
+            f"7. NATURAL LANGUAGE ONLY: Speak naturally as if you are looking at the actual photos. NEVER use technical, meta, or text-processing language. BANNED WORDS: 'description', 'described', 'query', 'text', 'prompt', 'image matches', 'criteria'.\n"
         )
+        
         if dual_modality:
             rag_prompt += (
-                f"4. NO ECHOING: Do not quote or repeat the exact phrasing of the user's query\n"
-                f"5. GENERALIZTION: collapse the description down to its absolute core subject (the primary object and its color). Do not list specific backgrounds, actions, or secondary details in your negative response (e.g., instead of saying 'None of the images match the description of a green frog sitting on a gray leaf with its eyes wide open', state simply: 'None of the images match to a green frog').\n"
-                f"6.NATURAL LANGUAGE ONLY: Speak naturally as if you are looking at the actual photos. NEVER use technical, meta, or text-processing language. BANNED WORDS: 'description', 'described', 'query', 'text', 'prompt', 'image matches', 'criteria'.\n"
+                f"8. CONCISE FOCUS: When confirming what matches, focus strictly on THE MAIN OBJECT or THE MAIN ACTION. Strip away all unnecessary fluff, peripheral objects, or environmental setup from your response. Keep it laser-focused on the core subject matter that satisfies the request.\n"
+                f"9. ZERO IMAGES CASE: If the provided set has 0 images, you must strictly output exactly: 'None of the images match to [THE MAIN OBJECT/ACTION]'. Infer the core subject from the user query, collapse it down to its absolute core object or action, and use it to complete that exact phrase. Do not write anything else.\n"
             )
 
         rag_prompt += (
@@ -163,9 +169,14 @@ class VLM:
         text = self.processor.apply_chat_template(
             messages, tokenize=False, add_generation_prompt=True
         )
-        image_inputs, video_inputs = process_vision_info(messages)
+        
+        # Safely extract vision info only if images are provided
+        if num_images > 0:
+            image_inputs, video_inputs = process_vision_info(messages)
+        else:
+            image_inputs, video_inputs = None, None
 
-        # process inputs
+        # process inputs dynamically based on presence of images
         inputs = self.processor(
             text=[text],
             images=image_inputs,
