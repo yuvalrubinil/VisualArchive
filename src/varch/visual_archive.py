@@ -30,7 +30,7 @@ class VisualArchive:
             # filtering images relevant to the query
             relevant_paths = self.vlm.rank_and_filter(query, relevant_paths)
             # refining into fine grained answer
-            rag_answer = self.vlm.generate_answer(query, relevant_paths)
+            rag_answer = self.vlm.generate_answer(query, relevant_paths, dual_modality=self.slm is not None)
 
         return relevant_paths, scores, rag_answer
     

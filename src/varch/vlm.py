@@ -35,12 +35,13 @@ class VLM:
         content = [
             {"type": "image", "image": image_path},
             {"type": "text", "text": (
-                "Task: Describe the primary subject and their main action in a single, ultra-concise sentence.\n\n"
-                "CRITICAL CONSTRAINTS:\n"
-                "1. NO BACKGROUNDS: Completely omit walls, floors, windows, furniture, and room layouts.\n"
-                "2. NO SPECULATION: Do not use weak fillers like 'appears to be', 'looks like', or 'seems to'. State only observable actions directly.\n"
-                "3. FORMAT: Output only the single raw sentence ending with a period. Keep it under 20 words."
-            )}
+            "Task: Describe the primary subject and their main action in a single, ultra-concise sentence.\n\n"
+            "CRITICAL CONSTRAINTS:\n"
+            "1. NO BACKGROUNDS: Completely omit walls, floors, windows, furniture, and room layouts.\n"
+            "2. NO SPECULATION: State only observable actions directly.\n"
+            "3. NO SPECIFIC PATTERNS: Do not mention specific patterns or stripes of objects. Use generic terms (e.g., 'a white sailboat' instead of 'a white sailboat with striped sails').\n"
+            "4. FORMAT: Output only the single raw sentence ending with a period. Keep it under 12 words."
+        )}
         ]
         
         messages = [{"role": "user", "content": content}]
@@ -51,7 +52,7 @@ class VLM:
             text=[text], images=image_inputs, videos=video_inputs, padding=True, return_tensors="pt"
         ).to(self.model.device)
 
-        generated_ids = self.model.generate(**inputs, max_new_tokens=32)
+        generated_ids = self.model.generate(**inputs, max_new_tokens=24)
         generated_ids_trimmed = [out_ids[len(in_ids):] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)]
         base_description = self.processor.batch_decode(
             generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
@@ -129,7 +130,7 @@ class VLM:
     
 
     @torch.no_grad()
-    def generate_answer(self, query, images_paths):
+    def generate_answer(self, query, images_paths, dual_modality=False):
         content = []
         for path in images_paths:
             content.append({"type": "image", "image": path})
@@ -143,8 +144,16 @@ class VLM:
             f"1. VISUAL IS DATA: Identify real-world objects, people, attributes (color, clothing, etc), scenes, and actions visible in the images as concrete facts.\n"
             f"2. DIRECT CONFIRMATION: Confirm what is present that matches the query. Do not say 'The image shows...'.\n"
             f"3. HONEST NEGATIVE: If none of the images match the query description at all, state clearly that the requested item/subject is not present.\n\n"
-            
-            f"User Query: '{query}'\n\n"
+        )
+        if dual_modality:
+            rag_prompt += (
+                f"4. NO ECHOING: Do not quote or repeat the exact phrasing of the user's query\n"
+                f"5. GENERALIZTION: collapse the description down to its absolute core subject (the primary object and its color). Do not list specific backgrounds, actions, or secondary details in your negative response (e.g., instead of saying 'None of the images match the description of a green frog sitting on a gray leaf with its eyes wide open', state simply: 'None of the images match to a green frog').\n"
+                f"6.NATURAL LANGUAGE ONLY: Speak naturally as if you are looking at the actual photos. NEVER use technical, meta, or text-processing language. BANNED WORDS: 'description', 'described', 'query', 'text', 'prompt', 'image matches', 'criteria'.\n"
+            )
+
+        rag_prompt += (
+            f"\nUser Query: '{query}'\n\n"
             f"Answer:"
         )
         content.append({"type": "text", "text": rag_prompt})

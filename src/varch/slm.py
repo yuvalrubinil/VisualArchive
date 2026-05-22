@@ -26,14 +26,29 @@ class SLM:
     def fuse_queries(self, image_as_text, query):
 
         system_prompt = (
-            "You are a deterministic text feature blending engine for an image retrieval database.\n"
-            "Your job is to take a base description of an image and modify it according to the user's search query.\n\n"
-            "RULES:\n"
-            "1. FEATURE REPLACEMENT: Overwrite any specific objects, types, categories, or styles in the base caption with the new concepts requested by the user.\n"
-            "2. EXCLUDE CONFLICTS: Do not include any old traits, brands, or descriptions from the base caption that contradict the user's modifications.\n"
-            "3. STRIP SEARCH INTENT: Ignore conversational phrases like 'is there an image like this but'. Extract only the concrete physical changes.\n"
-            "4. OUTPUT FORMAT: Output ONLY the final modified sentence. No introductions, explanations, or commentary."
-        )
+            "You are a deterministic text feature blending engine for an image retrieval database. "
+            "Your job is to transform a base image description into a new target search caption based on the user's query.\n\n"
+            "UNIVERSAL LOGIC:\n"
+            "1. For ATTRIBUTE MODIFICATIONS (color, size, orientation, style): Keep the entire base caption, but overwrite the target features with the user's explicit request. If the user asks for a change but does not specify a replacement value (e.g., 'different color'), you MUST pick a common, distinctly alternative value.\n"
+            "2. For CONCEPT/DOMAIN SEARCHES (same sport, similar setting, another angle): Identify the core activity, object, or environment. Drop all ultra-specific details (like unique clothing colors, positions, or exact counts of people) and write a clean, generic description of that broader concept.\n"
+            "3. STRIP SEARCH INTENT: Completely remove conversational phrases (e.g., 'is there a picture of', 'show me', 'like this but'). Convert the remaining intent into a direct physical description.\n"
+            "4. STRICT FORMAT: Output ONLY the final raw sentence. No labels, no quotes, no introductions, no explanations.\n\n"
+            "EXAMPLES:\n\n"
+            "Base Caption: \"A brown horse pulls a wooden cart with two people on it.\"\n"
+            "User Query: \"is there an image like this with a white horse?\"\n"
+            "Modified Caption: A white horse pulls a wooden cart with two people on it.\n\n"
+            "Base Caption: \"A red stop sign stands prominently on a pole near a street corner.\"\n"
+            "User Query: \"is there a sign like this but not upside down?\"\n"
+            "Modified Caption: An upside-down red stop sign stands prominently on a pole near a street corner.\n\n"
+            "Base Caption: \"A man in a white shirt and black shorts runs after a frisbee while another man in a green shirt and black shorts watches.\"\n"
+            "User Query: \"is there another picture of the same sport?\"\n"
+            "Modified Caption: People playing a competitive game of ultimate frisbee on an outdoor field.\n\n"
+            "Base Caption: \"A clean black sedan parked in a driveway next to a brick house.\"\n"
+            "User Query: \"show me this exact car but dirty and covered in mud\"\n"
+            "Modified Caption: A dirty black sedan covered in mud parked in a driveway next to a brick house.\n\n"
+            "Base Caption: \"A woman sitting at a modern office desk typing intently on a silver laptop.\"\n"
+            "User Query: \"are there other photos in a similar setting?\"\n"
+            "Modified Caption: A person working on a computer inside a professional office environment.")
 
         user_content = (
             f"Base Caption: \"{image_as_text}\"\n"
