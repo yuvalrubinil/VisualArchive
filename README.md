@@ -10,7 +10,7 @@ By combining dense semantic vector search via **CLIP** with a fine grained Visio
 
 ## Pipeline Overview
 
-`varch` implements a streamlined, lightweight pipeline that leverages the natural joint latent space of CLIP paired with the visual reasoning of Qwen2.5-VL:
+`varch` implements a streamlined, lightweight pipeline:
 
 ```mermaid 
 graph LR
@@ -120,7 +120,7 @@ Local image collections are processed entirely offline through a **CLIP Image En
 
 * **Flexible Hardware Support:** Supports both GPU and CPU execution. 
     * **GPU:** Features pre-configured **4-bit quantization** (via BitsAndBytes) to run efficiently on resource-constrained consumer cards with low VRAM (6GB/8GB).
-    * **CPU:** Fully supported for systems without a dedicated graphics card.
+    * **CPU:** Partially supported due to high CPU latency. Fully supports `--fr` mode.
 
 * **Streamlined CLI:** A power-packed, interactive command-line interface that supports direct terminal commands and includes structured documentation.
 
