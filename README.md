@@ -2,7 +2,7 @@
 
 ![Project Logo](figures/poster1.png)
 
-`varch` is a lightweight, fully local, multimodal RAG system designed to let you query your local image galleries using natural language. 
+`varch` is a lightweight, fully local, multimodal RAG system designed to let you query your local image galleries using natural language, reference images, or a combination of both.
 
 By combining dense semantic vector search via **CLIP** with a fine grained Vision Language Model **Qwen2.5-VL-3B-Instruct**, `varch` allows you to locate visual attributes, activities, and text context across your image database entirely offline without leaking data to external cloud APIs.
 
@@ -14,77 +14,109 @@ By combining dense semantic vector search via **CLIP** with a fine grained Visio
 
 ```mermaid 
 graph LR
-    %% Define Styles and Colors
     classDef process fill:#23272e,stroke:#3e4451,stroke-width:2px,color:#abb2bf;
-    classDef database fill:#2e3440,stroke:#81a1c1,stroke-width:2px,color:#d8dee9;
+    classDef database fill:#2e3440,stroke:#88c0d0,stroke-width:2px,color:#d8dee9;
+    classDef fork fill:#3b4252,stroke:#d8dee9,stroke-width:2px,color:#e5e9f0;
+    
+    %% Search Results Styling
+    classDef retrievalK fill:#2e3440,stroke:#8fbcbb,stroke-width:2px,color:#e5e9f0;
+    classDef retrieval fill:#434c5e,stroke:#a3be8c,stroke-width:2px,color:#e5e9f0;
 
-    %% Different input colors
+    %% Blue Scheme for Text / Structural Text Operations
+    classDef textInput fill:#2e3440,stroke:#6b8da3,stroke-width:2px,color:#e5e9f0;
+    
+    %% Mint Green for Small Language Model
+    classDef slmModel fill:#2e3440,stroke:#6ba38a,stroke-width:2px,color:#e5e9f0;
+    
+    %% Warm Amber Gold for Image Input
     classDef imageInput fill:#2e3440,stroke:#ebcb8b,stroke-width:2px,color:#e5e9f0;
-    classDef textInput fill:#2e3440,stroke:#ebe38b,stroke-width:2px,color:#e5e9f0;
-   
-    %% Models
-    classDef model fill:#2e3440,stroke:#b48ead,stroke-width:2px,color:#e5e9f0;
+    
+    %% Rose Pink for Vision Language Model
+    classDef vlmModel fill:#2e3440,stroke:#a36b75,stroke-width:2px,color:#e5e9f0;
+    
+    %% Classic Purple for Traditional Embedding Models (CLIP)
+    classDef clipModel fill:#2e3440,stroke:#b48ead,stroke-width:2px,color:#e5e9f0;
 
-    %% Retrieval output similar to DB
-    classDef retrievalK fill:#2e3440,stroke:#88c0d0,stroke-width:2px,color:#e5e9f0;
-    classDef retrieval fill:#2e3440,stroke:#a3be8c,stroke-width:2px,color:#e5e9f0;
+    %% Invisible Legend Structural Style
+    classDef legendText fill:transparent,stroke:transparent,color:#abb2bf;
 
-    %% Invisible spacer style
-    classDef invisible fill:transparent,stroke:transparent,color:transparent;
+    %% Subgraph Group Styling
+    style Legend fill:#1e222b,stroke:#3e4451,stroke-width:1px,color:#abb2bf
+    style Offline fill:transparent,stroke:#4c566a,stroke-dasharray: 5 5,color:#d8dee9
+    style RunTime fill:transparent,stroke:#4c566a,color:#d8dee9
 
-    %% Make subgraphs transparent
-    style Indexing fill:transparent,stroke:#4c566a,color:#d8dee9
-    style Retrieval fill:transparent,stroke:#4c566a,color:#d8dee9
-    style Generation fill:transparent,stroke:#4c566a,color:#d8dee9
-
-    %% 1. Database Indexing Path
-    subgraph Indexing ["Database Indexing"]
+    subgraph Legend ["Legend"]
         direction LR
-        A[Local Image Collection] --> B(CLIP Vision Encoder)
-        B --> C[(FAISS Vector Database)]
+        L_SLM(SLM):::slmModel               -.-> L_SLM_T[Qwen2.5-1.5B-Instruct — Small Language Model]:::legendText
+        L_VLM(VLM):::vlmModel               -.-> L_VLM_T[Qwen2.5-VL-3B-Instruct — Visual Language Model]:::legendText
     end
 
-    %% Spacer node to improve layout
-    X[" "]:::invisible
-
-    %% 2. Dense Semantic Retrieval Path
-    subgraph Retrieval ["Dense Semantic Retrieval⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀"]
-        direction LR
-        D[Raw Text User Query] --> E(CLIP Text Encoder)
-        E --> C
-        C --> F[Top-K Images]
+    subgraph Offline ["Database Indexing"]
+        A[Local Image Collection]:::imageInput --> B(CLIP Image Encoder):::clipModel
+        B --> C[(FAISS Vector Database)]:::database
     end
 
-    %% 3. Multimodal Generation Path
-    subgraph Generation ["Multimodal Generation"]
-        direction LR
-        F --> H(Context Window Bundle)
-        D --> H
-        H --> I(Qwen2.5-VL-3B-Instruct)
-        I --> J[Grounded Final Answer]
-    end
+    subgraph RunTime ["Runtime Query Pipelines"]
+        
+        %% Pipeline Entry Queries
+        T_Query[Text Query]:::textInput
+        I_Query[Image Query]:::imageInput
 
-    %% Assign Classes
-    class A imageInput;
-    class D textInput;
-    class B,E,I model;
-    class C database;
-    class F retrievalK;
-    class H process;
-    class J retrieval;
+        %% Unified Target Vector Space
+        CLIP_Text(CLIP Text Encoder):::clipModel
+
+        %% Fast Retrieval and Default Search Routing
+        T_Query -->|"--fr" Mode| CLIP_Text
+        T_Query -->|"default" Mode| CLIP_Text
+        
+        %% Dual-Modality (--dm) Multimodal Pipeline Processing
+        I_Query -->|"--dm" Mode| VLM_I2T(VLM):::vlmModel
+        VLM_I2T -->|"image_to_text()"| SLM_Extract(SLM):::slmModel
+        T_Query -->|"--dm" Mode| SLM_Extract
+
+        %% Contextual Dynamic Augmentation Branch (Fork)
+        SLM_Extract -->|"extract_augmentation()"| Fork_Aug{Augmentation<br>Detected?}:::fork
+        
+        Fork_Aug -->|Yes| SLM_Apply(SLM):::slmModel
+        SLM_Apply -->|"apply_augmentation()"| CLIP_Text
+        
+        Fork_Aug -->|No| CLIP_Img_DM(CLIP Image Encoder):::clipModel
+
+        %% Concurrent Multi-Path Database Lookup
+        CLIP_Text --> C
+        CLIP_Img_DM --> C
+
+        %% Candidate Search Space Extraction
+        C --> TopK[Top-K <br>Candidate Images]:::retrievalK
+
+        %% Instant Mode Low-Latency Terminus
+        TopK -->|"--fr" Mode| FR_Out[Raw Top-K Results]:::retrieval
+
+        %% Downstream Generative Verification & Reranking 
+        TopK -->|default / --dm| VLM_Rank(VLM):::vlmModel
+        VLM_Rank -->|"rank_and_filter()"| VLM_Ans(VLM):::vlmModel
+        VLM_Ans -->|"generate_answer()"| Final_Ans[Fine-Grained Answer]:::retrieval
+    end
 ```
 
-**Database Indexing:** Local image collections are processed entirely offline through a **CLIP Vision Encoder** to generate dense visual embedding vectors, which are then indexed inside a high-performance **FAISS** vector database.
+### Database Indexing:
+Local image collections are processed entirely offline through a **CLIP Image Encoder** to generate dense visual embedding vectors, which are then indexed inside a high-performance **FAISS** vector database.
 
-**Dense Semantic Retrieval:** The raw natural language user query is passed directly into the **CLIP Text Encoder**. A fast similarity search is then executed against the FAISS index to retrieve the top-$K$ visual matches.
+### Dynamic Search Routines:
 
-**Multimodal Generation:** The retrieved images and the original user query are bundled into a structurally guarded prompt context window and passed to **Qwen2.5-VL-3B-Instruct** to synthesize the final, grounded answer.
+**Fast Retrieval (`--fr`):** Bypasses the models entirely for raw speed. The text query is converted into a vector via the CLIP Text Encoder to pull the top-$k$ raw candidate images directly from the database with sub-millisecond latency.
+
+**Default Search:** Combines fast indexing with visual verification. After extracting the initial top-$K$ candidates, the images are routed directly to the VLM to filter out false positives and synthesize a precise, grounded text response.
+
+**Dual-Modality (`--dm`):** Fuses a source image query with text modifiers to handle complex visual requests. The SLM conditionally handles this fusion: if the text query requests an explicit modification, it merges the inputs for a CLIP Text search, otherwise it falls back to a direct visual-to-visual CLIP Image lookup before the VLM generates the final answer. 
 
 ---
 
 ## Features
 
 * **100% Connection Free:** Runs fully local with zero external API calls, ensuring complete privacy and offline availability.
+
+* **Dual-Modality Searching:** Allows to combine a reference image with natural language instructions to perform conditional, context-aware visual searches: searching for objects while dynamically tracking or altering specific details.
 
 * **Flexible Hardware Support:** Supports both GPU and CPU execution. 
     * **GPU:** Features pre-configured **4-bit quantization** (via BitsAndBytes) to run efficiently on resource-constrained consumer cards with low VRAM (6GB/8GB).
@@ -117,10 +149,10 @@ The toolkit exposes a global unified entry point `varch` through your terminal. 
 
 | Command | Action | Arguments |
 | :--- | :--- | :--- |
-| [`status`](#1-varch-status) | Checks hardware backend, database health, and model cache status. | None |
+| [`status`](#1-varch-status) | Checks hardware backend, database health, and models cache status. | None |
 | [`init`](#2-varch-init) | Pre-downloads and verifies the required weights for local execution. | None |
 | [`observe`](#3-varch-observe) | Processes a folder of images and commits embeddings into the vector DB. | `PATH` |
-| [`search`](#4-varch-search) | Spawns an interactive shell prompt session for semantic retrieval. |`-k`, `--fr` |
+| [`search`](#4-varch-search) | Spawns an interactive shell prompt session for semantic retrieval. |`-k`, `--fr`, `--dm` |
 
 ---
 
@@ -152,12 +184,16 @@ varch observe /path/to/image/folder
 ```
 
 #### 4. `varch search`
-Launches an ongoing interactive session inside your terminal to find visuals via natural language. Type queries continuously; input `~terminate` to safely break out and exit the execution thread.
+Launches an ongoing interactive session inside your terminal to find visuals via natural language and reference images. Type queries continuously; input `~terminate` to safely break out and exit the execution thread.
 
 * **Arguments:**
   * `-k` (Integer, Default: 5): Sets the limit threshold for the total number of nearest-neighbor matches retrieved.
   * `--fr` (Flag, Default: False): Enables Fast Retrieval mode. Activating this flag bypasses heavy visual language reconstruction steps (skipping VLM weights decoding logic entirely) to provide pure vector lookup speeds across embeddings.
+  * `--dm` (Flag, Default: False): Enables Dual-Modality mode. Activating this flag prompts the terminal to accept a source reference image path alongside your text query, allowing the SLM and VLM to handle conditional, context-aware visual modifications.
 
 ```bash
-varch search -k 3 --fr
+varch search -k 4 --fr
+```
+```bash
+varch search --dm
 ```
