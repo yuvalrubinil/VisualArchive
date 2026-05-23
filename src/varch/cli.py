@@ -1,33 +1,41 @@
-from pathlib import Path
 import os
-import warnings
-import torch
 import typer
+import logging
+import warnings
+from pathlib import Path
+
+import torch
 import open_clip
+from transformers import utils
+from huggingface_hub import snapshot_download
+from huggingface_hub.constants import HF_HUB_CACHE
+from huggingface_hub import scan_cache_dir
+
 from varch.visual_archive import VisualArchive
 from varch.encoder import MODEL as CLIP_MODEL
 from varch.encoder import PRETRAINED
-from huggingface_hub import snapshot_download
 from varch.vlm import MODEL as QWEN_VLM_MODEL
 from varch.slm import MODEL as QWEN_SLM_MODEL
-from huggingface_hub.constants import HF_HUB_CACHE
-from huggingface_hub import scan_cache_dir
 
 
 # silence warnings
 warnings.filterwarnings(
     "ignore",
     category=FutureWarning,
-    message=".*_check_is_size will be removed in a future PyTorch release.*"
-)
+    message=".*_check_is_size will be removed in a future PyTorch release.*")
+os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
+logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
+utils.logging.set_verbosity_error()
+
+
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
-
 app = typer.Typer(help="varch - VisualArchive, local image RAG system")
 
 
-# how the relevant info is printed back to the user
 def build_output(images_paths, scores, rag_answer=None):
+    """Constructs the relevant info and prints it back to the user"""
+
     output_lines = ["--- Relevant Images (Ctrl+Click to open) ---"]
     if rag_answer: 
         styled_rag_answer = typer.style(rag_answer, fg=typer.colors.BRIGHT_CYAN)
@@ -40,9 +48,10 @@ def build_output(images_paths, scores, rag_answer=None):
 
 # Commands
 
-# see the current status
 @app.command()
 def status():
+    """Prints the current device-chache-db status"""
+    
     # device
     device_color = typer.colors.GREEN if device == 'cuda' else typer.colors.BLUE
     styled_device = typer.style(device, fg=device_color)
@@ -74,10 +83,11 @@ def status():
     typer.echo(f"device: {styled_device}")
     typer.echo(f"hf cache: {styled_clip}   {styled_vlm_qwen}   {styled_slm_qwen}")
     typer.echo(f"database: {styled_db}")
-
-# downlaods all necessary models 
+ 
 @app.command()
 def init():
+    """Downlaods all necessary models to hf cache"""
+
     typer.echo("initializing varch...")
     try:
         typer.echo("downloading open-clip...")
@@ -102,18 +112,19 @@ def init():
         typer.echo(f"[ERROR] {e}")
         raise typer.Exit(code=1)
 
-# observe all images in path and embedd into the DB
 @app.command()
 def observe(path: str = typer.Argument(...,help="path to image folder")):
+    """Call to observes all images in path"""
+
     visual_archive = VisualArchive(path=Path.cwd(), device=device, load_db=False)
     visual_archive.observe(path)
 
-# load & search the archive
 @app.command()
 def search(
     k: int = typer.Option(5, "-k", help="number of retrieved images"), 
     fast_retrieval: bool = typer.Option(False, "--fr", help="use faster retrieval mode"),
     dual_modality: bool = typer.Option(False, "--dm", help="search with image and text")):
+    """Call to a search on the archive"""
 
     visual_archive = VisualArchive(path=Path.cwd(), device=device, load_db=True, load_vlm=not fast_retrieval, load_slm=dual_modality)
     while True:
@@ -126,8 +137,6 @@ def search(
         relevant_paths, scores, rag_answer = visual_archive.search(query, image_path=image_path, k=k)
         answer = build_output(relevant_paths, scores, rag_answer)
         typer.echo(answer)
-
-
 
 
 def main():

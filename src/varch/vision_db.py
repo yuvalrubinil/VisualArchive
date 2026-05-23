@@ -1,10 +1,12 @@
-import faiss
-import numpy as np
 import os
 from PIL import Image
+
+import faiss
+import numpy as np
+
+import torch
 from tqdm import tqdm
 from varch.encoder import Encoder
-import torch
 
 VALID_FORMATS = ('.jpg', '.jpeg', '.png')
 
@@ -23,6 +25,8 @@ class VisionDB():
 
     @torch.no_grad()    
     def observe(self, path):
+        """Observes all images in path and embedds them into the DB"""
+        
         assert not self.paths
         print(f"observing: {path}")
         images = [os.path.join(path, f) for f in os.listdir(path) if f.lower().endswith(VALID_FORMATS)]
@@ -58,27 +62,44 @@ class VisionDB():
         print(f"indexed {self.index.ntotal}/{len(images)} images")
 
     @torch.no_grad()
-    def search(self, text, k=5):
-        assert self.paths
-        # tokenizing
-        tokens = self.encoder.tokenizer(text)
-        tokens = tokens.to(self.device)
+    def search(self, text=None, image_path=None, k=5):
+        """Searches the DB"""
 
-        # embedding the text
-        query_vec = self.encoder.embedd_text(tokens)
-        query_vec = query_vec.to('cpu')
+        assert self.paths
+        assert text or image_path
+
+        query_vec = None
+        if text:
+            # tokenizing
+            tokens = self.encoder.tokenizer(text)
+            tokens = tokens.to(self.device)
+            
+            # embedding the text
+            query_vec = self.encoder.embedd_text(tokens)
+            query_vec = query_vec.to('cpu')
+
+        elif image_path:
+            # embedding the image
+            image = Image.open(image_path).convert('RGB')
+            image = torch.stack([self.encoder.preprocess(image)]).to(self.device) # 'tensoring' the image
+            query_vec = self.encoder.embedd_images(image)
+            query_vec = query_vec.to('cpu')
 
         D, I = self.index.search(query_vec, k)
         relevant_images, scores =  [self.paths[idx] for idx in I[0] if idx != -1], D[0]
         return relevant_images, scores
 
     def save(self):
+        """Saves the DB"""
+
         print("saving db...")
         faiss.write_index(self.index, os.path.join(self.path, "embeddings.index"))
         np.save(os.path.join(self.path, "paths.npy"), self.paths)
         print(f"db saved to {self.path} successfuly")
 
     def load(self):
+        """Loads the DB"""
+
         print("loading db...")
         self.index = faiss.read_index(os.path.join(self.path, "embeddings.index"))
         self.paths = np.load(os.path.join(self.path, "paths.npy")).tolist()
