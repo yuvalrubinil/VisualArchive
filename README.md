@@ -47,8 +47,8 @@ graph LR
 
     subgraph Legend ["Legend"]
         direction LR
-        L_SLM(SLM):::slmModel               -.-> L_SLM_T[Qwen2.5-1.5B-Instruct — Small Language Model]:::legendText
-        L_VLM(VLM):::vlmModel               -.-> L_VLM_T[Qwen2.5-VL-3B-Instruct — Visual Language Model]:::legendText
+        L_SLM(SLM):::slmModel               -.-> L_SLM_T[Small Language Model <br> Qwen2.5-1.5B-Instruct]:::legendText
+        L_VLM(VLM):::vlmModel               -.-> L_VLM_T[Visual Language Model <br> Qwen2.5-VL-3B-Instruct]:::legendText
     end
 
     subgraph Offline ["Database Indexing"]
