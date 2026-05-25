@@ -23,11 +23,9 @@ class VisualArchive:
         # fusing visual and textual queries
         if self.slm and self.vlm and image_path:
             image_as_text = self.vlm.image_to_text(image_path)
-            print(f"image as text: {image_as_text}")
             augmentation = self.slm.extract_augmentation(image_as_text, query).lower()
             if augmentation != 'none':
                 query = self.slm.apply_augmentation(image_as_text, augmentation)
-                print(f"updated query: {query}")
             else:
                 query = None
             
